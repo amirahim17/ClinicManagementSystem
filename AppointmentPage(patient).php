@@ -1,126 +1,67 @@
-<!DOCTYPE html>
-<html>
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta charset="utf-8">
-<title>Welcome To MedicHub</title>
-<style>
-    * {
-        box-sizing: border-box;
-        margin: 0;
-    }
+<?php
+session_start();
+if (!isset($_SESSION['userID']) ||!isset($_SESSION['userType'])) {
+    echo "Session variables not set!";
+    exit;
+}
 
-    body {
-        text-align: center;
-        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
+include("dbconn.php");
+$pdo = $conn;
 
-    .container {
-        max-width: 1200px;
-        margin: 0 auto;
-        padding: 30px;
-    }
+// Get patient ID from session
+$patientID = $_SESSION['userID'];
 
-    .header {
-        background: linear-gradient(-135deg, #c850c0, #4158d0);
-        color: #fff;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
+// Function to get appointment information based on patient ID
+function getAppointmentInfo($pdo, $patientID) {
+    try {
+        $stmt = $pdo->prepare("SELECT a.*, d.doctorName, m.medName 
+                              FROM appointment a 
+                              LEFT JOIN doctor d ON a.doctorID = d.doctorID 
+                              LEFT JOIN prescription p ON a.prescriptionID = p.prescriptionID 
+                              LEFT JOIN medication m ON p.medSerialNumber = m.medSerialNumber 
+                              WHERE a.patientID =?");
+        $stmt->bindParam(1, $patientID, PDO::PARAM_STR);
+        $stmt->execute();
+        $appointments = $stmt->fetchAll();
 
-    .header h1 {
-        font-size: 55px;
-        display: inline;
+        return $appointments;
+    } catch (PDOException $e) {
+        echo "Error: ". $e->getMessage(). "\n"; // Debugging statement
+        return false;
     }
+}
 
-    .menu {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
-        margin-bottom: 30px;
-    }
+$appointments = getAppointmentInfo($pdo, $patientID);
 
-    .menu-button {
-        background-color: #fae6d2;
-        color: #b69b7c;
-        padding: 10px 20px;
-        border-radius: 10px;
-        text-decoration: none;
-    }
-
-    .menu-button:hover {
-        background-color: #b69b7c;
-        color: #fae6d2;
-    }
-
-    table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 20px;
-    }
-
-    th, td {
-        padding: 8px;
-        text-align: left;
-        border-bottom: 1px solid #b69b7c;
-    }
-
-    .order p {
-        margin: 0;
-        color: #b69b7c;
-    }
-</style>
-</head>
-<body>
-
-<div class="container">
-    <div class="header">
-        <h1>Welcome To MedicHub</h1>
+if ($appointments) {
+   ?>
+    <div class="appointment-list">
+        <h2>Appointment List</h2>
+        <table>
+            <tr>
+                <th>Appointment ID</th>
+                <th>Appointment Date</th>
+                <th>Time Slot</th>
+                <th>Diagnosis</th>
+                <th>Doctor Name</th>
+                <th>Medicine Name</th>
+                <th>Appointment Status</th>
+            </tr>
+            <?php foreach ($appointments as $appointment) {?>
+            <tr>
+                <td><?= $appointment['appointmentID']?></td>
+                <td><?= $appointment['appointmentDate']?></td>
+                <td><?= $appointment['timeSlot']?></td>
+                <td><?= $appointment['diagnosis']?></td>
+                <td><?= $appointment['doctorName']?></td>
+                <td><?= $appointment['medName']?></td>
+                <td><?= $appointment['appointmentStatus']?></td>
+            </tr>
+            <?php }?>
+        </table>
     </div>
-
-    <h2>appointment</h2>
     <?php
-    session_start();
-    include("dbconn.php");
-
-    // Check if customerID is set in session
-    if (!isset($_SESSION['patientID'])) {
-        echo "Please log in to see your appointment history.";
-    } else {
-        $patientID = $_SESSION['patientID'];
-
-        // Query to fetch orders for the logged-in customer
-        $sql = "SELECT * FROM appointment WHERE patientID = '$patientID'";
-        $query = mysqli_query($dbconn, $sql) or die ("Error: " . mysqli_error($dbconn));
-
-        // Check if any orders are found
-        $row = mysqli_num_rows($query);
-        if ($row == 0) {
-            echo "No orders found";
-        } else {
-            echo '<table>';
-            echo '<tr>';
-            echo '<th>appointmentID</th>';
-            echo '<th>patientID</th>';
-            echo '<th>appointmentDate</th>';
-            echo '<th>diagnosis</th>';
-            echo '</tr>';
-            while ($row = mysqli_fetch_array($query)) {
-                echo '<tr>';
-                echo '<td>' . $row["appointmentIDID"] . '</td>';
-                echo '<td>' . $row["patientID"] . '</td>';
-                echo '<td>' . $row["appointmentDate"] . '</td>';
-                echo '<td>RM' . $row["diagnosis"] . '</td>';
-                echo '</tr>';
-            }
-            echo '</table>';
-        }
-    }
-    ?>
-</div>
-</body>
-</html>
+} else {
+    echo "No appointments found!";
+}
+?>
