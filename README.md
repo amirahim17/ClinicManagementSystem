@@ -1,3 +1,3 @@
 # ClinicManagementSystem
 
-This is a CSC264 group project.
+This is a CSC264 group project. (MedicHub draft)
